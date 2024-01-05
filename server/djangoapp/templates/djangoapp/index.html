@@ -18,7 +18,22 @@
         <!-- Navigation Bar -->
         <nav class="navbar navbar-expand-lg navbar-light bg-light">
             <a class="navbar-brand" href="#">Dealership Reviews</a>
-            <!-- Add more elements to the navbar if needed -->
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                {% if user.is_authenticated %}
+                <form class="form-inline ml-auto">
+                    <span>({{user.username}})</span>
+                    <a href="{% url 'djangoapp:logout' %}"> Logout</a>
+                </form>
+                {% else %}
+                <form class="form-inline ml-auto" action="{% url 'djangoapp:login' %}" method="post">
+                    {% csrf_token %}
+                    <input type="text" name="username" class="form-control mr-sm-2" placeholder="Username">
+                    <input type="password" name="password" class="form-control mr-sm-2" placeholder="Password">
+                    <button class="btn btn-primary my-2 my-sm-0" type="submit">Login</button>
+                </form>
+                <a href="{% url 'djangoapp:signup' %}"> Sign Up</a>
+                {% endif %}
+            </div>
         </nav>
 
         <!-- Dealer Table -->

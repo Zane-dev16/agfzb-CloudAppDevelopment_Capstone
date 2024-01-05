@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
@@ -28,6 +27,10 @@ DEBUG = True
 APPEND_SLASH = True
 
 ALLOWED_HOSTS = ["localhost"]
+CSRF_TRUSTED_ORIGINS = [
+    'https://itsirellzane-8000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai',
+    # Add other trusted origins if needed
+]
 
 
 # Application definition
