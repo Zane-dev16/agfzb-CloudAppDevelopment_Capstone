@@ -104,7 +104,10 @@ def analyze_review_sentiments(review_text):
     myobj = { "raw_document": { "text": review_text } }
     header = {"grpc-metadata-mm-model-id": "sentiment_aggregated-bert-workflow_lang_multi_stock"}
     response = requests.post(url, json = myobj, headers=header)
-    return response.text
+    response_data = json.loads(response.text)
+    label = response_data['documentSentiment']['label']
+    
+    return label
 
 # Create an `analyze_review_sentiments` method to call Watson NLU and analyze text
 # def analyze_review_sentiments(text):

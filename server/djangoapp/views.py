@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
-# from .models import related models
+from .models import CarModel
 # from .restapis import related methods
 from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
@@ -10,7 +10,6 @@ from datetime import datetime
 import logging
 import json
 from .restapis import get_dealers_from_cf, get_dealer_reviews_from_cf, post_request
-
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
@@ -80,35 +79,52 @@ def registration_request(request):
 
 # Update the `get_dealerships` view to render the index page with a list of dealerships
 def get_dealerships(request):
+    context = {}
     if request.method == "GET":
         url = "your-cloud-function-domain/dealerships/dealer-get"
         # Get dealers from the URL
         dealerships = get_dealers_from_cf(url)
-        # Concat all dealer's short name
-        dealer_names = ' '.join([dealer.short_name for dealer in dealerships])
-        # Return a list of dealer short name
-        return HttpResponse(dealer_names)
+        
+        context['dealerships'] = dealerships
+        # Render the template with dealerships in the context
+        return render(request, 'djangoapp/index.html', context)
 
 def get_dealer_details(request, dealer_id):
     if request.method == "GET":
-        reviews = get_dealer_reviews_from_cf(dealer_id)
-        review_texts = ' '.join([dealer_review.review for dealer_review in reviews])
-        return HttpResponse(review_texts)  # Assuming there's an HTML template for displaying reviews
+        context = {
+            "reviews": get_dealer_reviews_from_cf(dealer_id), 
+            "dealer_id": dealer_id
+        }
+        return render(request, 'djangoapp/dealer_details.html', context)
     return HttpResponse("Invalid request method")
 
-def add_review(request, dealer_id):
-    review = dict()
 
-    # Filling in the attributes
-    review["id"] = 1
-    review["name"] = "John Doe"
-    review["dealership"] = dealer_id
-    review["review"] = "This is a new review. This is a great car dealer. Very satisfied with their service!"
-    review["purchase"] = True
-    review["purchase_date"] = "2023-12-15"
-    review["car_make"] = "Toyota"
-    review["car_model"] = "Corolla"
-    review["car_year"] = 2020
-    review["time"] = datetime.utcnow().isoformat()
-    post_request("random url", review)
-    return HttpResponse("Success")
+id = 100
+def add_review(request, dealer_id):
+    cars = CarModel.objects.filter(dealer_id=dealer_id)
+    context = {"dealer_id": dealer_id, "cars": cars}
+
+    if request.method == "GET":
+        return render(request, "djangoapp/add_review.html", context)
+    if request.method == "POST":
+        global id
+        id += 1
+        review = {
+            "id": id,
+            "name": "John Doe",
+            "dealership": dealer_id,
+            "review": request.POST.get("content"),
+            "purchase": "purchasecheck" in request.POST,
+            "purchase_date": request.POST.get("purchasedate"),
+            "car_make": CarModel.objects.get(id=request.POST.get("car")).car_make.name,
+            "car_model": CarModel.objects.get(id=request.POST.get("car")).name,
+            "car_year": CarModel.objects.get(id=request.POST.get("car")).year.strftime("%Y"),
+            "time": datetime.utcnow().isoformat(),
+        }
+        
+        # Assuming you have a function to post the review to a URL/API
+        # Replace "random url" with your actual endpoint
+        post_request("random url", review)
+        
+        # Redirect to the dealer details page
+        return redirect("djangoapp:dealer_details", dealer_id=dealer_id)
