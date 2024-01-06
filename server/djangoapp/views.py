@@ -9,7 +9,7 @@ from django.contrib import messages
 from datetime import datetime
 import logging
 import json
-from .restapis import get_dealers_from_cf
+from .restapis import get_dealers_from_cf, get_dealer_reviews_from_cf, post_request
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -92,11 +92,23 @@ def get_dealerships(request):
 def get_dealer_details(request, dealer_id):
     if request.method == "GET":
         reviews = get_dealer_reviews_from_cf(dealer_id)
-        context = {'reviews': reviews}
-        return render(request, 'dealer_details.html', context)  # Assuming there's an HTML template for displaying reviews
+        review_texts = ' '.join([dealer_review.review for dealer_review in reviews])
+        return HttpResponse(review_texts)  # Assuming there's an HTML template for displaying reviews
     return HttpResponse("Invalid request method")
 
-# Create a `add_review` view to submit a review
-# def add_review(request, dealer_id):
-# ...
+def add_review(request, dealer_id):
+    review = dict()
 
+    # Filling in the attributes
+    review["id"] = 1
+    review["name"] = "John Doe"
+    review["dealership"] = dealer_id
+    review["review"] = "This is a new review. This is a great car dealer. Very satisfied with their service!"
+    review["purchase"] = True
+    review["purchase_date"] = "2023-12-15"
+    review["car_make"] = "Toyota"
+    review["car_model"] = "Corolla"
+    review["car_year"] = 2020
+    review["time"] = datetime.utcnow().isoformat()
+    post_request("random url", review)
+    return HttpResponse("Success")

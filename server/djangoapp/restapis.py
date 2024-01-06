@@ -1,15 +1,21 @@
 import requests
 import json
-# import related models here
+from .models import CarDealer, DealerReview
 from requests.auth import HTTPBasicAuth
-
-
+from .data import dealerships, reviewlist
 def get_request(url, **kwargs):
-    print(kwargs)
-    print(f"GET from {url}")
+    params = dict()
+    params["text"] = kwargs["text"]
+    params["version"] = kwargs["version"]
+    params["features"] = kwargs["features"]
+    params["return_analyzed_text"] = kwargs["return_analyzed_text"]
+     
     try:
-        requests.get(url, params=params, headers={'Content-Type': 'application/json'},
-                                    auth=HTTPBasicAuth('apikey', api_key))
+        if api_key:
+            response = requests.get(url, params=params, headers={'Content-Type': 'application/json'},
+                                        auth=HTTPBasicAuth('apikey', api_key))
+        else:
+            response = request.get(url, params=params)
         response.raise_for_status()  # Raise exception for bad status codes (4xx or 5xx)
     except requests.exceptions.RequestException as e:
         print(f"Network exception occurred: {e}")
@@ -26,29 +32,30 @@ def get_request(url, **kwargs):
         return None
 
 # Create a `post_request` to make HTTP POST requests
+def post_request(url, json_payload, **kwargs):
+    reviewlist.append(json_payload)
+
 # e.g., response = requests.post(url, params=kwargs, json=payload)
 
 def get_dealers_from_cf(url, **kwargs):
     results = []
-    json_result = get_request(url, **kwargs)  # Call get_request with the specified URL and kwargs
+    json_result = dealerships  # Call get_request with the specified URL and kwargs
     
     if json_result:
-        dealers = json_result.get("rows", [])  # Extract 'rows' from the JSON result or default to an empty list
+        dealers = json_result.get("dealerships", [])  # Extract 'rows' from the JSON result or default to an empty list
         
         for dealer in dealers:
-            dealer_doc = dealer.get("doc", {})  # Extract 'doc' from each dealer object or default to an empty dictionary
-            
             # Create a CarDealer object with values from the 'doc' object
             dealer_obj = CarDealer(
-                address=dealer_doc.get("address"),
-                city=dealer_doc.get("city"),
-                full_name=dealer_doc.get("full_name"),
-                id=dealer_doc.get("id"),
-                lat=dealer_doc.get("lat"),
-                long=dealer_doc.get("long"),
-                short_name=dealer_doc.get("short_name"),
-                st=dealer_doc.get("st"),
-                zip=dealer_doc.get("zip")
+                address=dealer.get("address"),
+                city=dealer.get("city"),
+                full_name=dealer.get("full_name"),
+                id=dealer.get("id"),
+                lat=dealer.get("lat"),
+                long=dealer.get("long"),
+                short_name=dealer.get("short_name"),
+                st=dealer.get("st"),
+                zip=dealer.get("zip")
             )
             
             results.append(dealer_obj)  # Append the created CarDealer object to the results list
@@ -56,33 +63,16 @@ def get_dealers_from_cf(url, **kwargs):
     
     return results  # Return the list of CarDealer objects
 
-class DealerReview:
-    def __init__(self, dealership, name, purchase, review, purchase_date, car_make, car_model, car_year, sentiment, id):
-        self.dealership = dealership
-        self.name = name
-        self.purchase = purchase
-        self.review = review
-        self.purchase_date = purchase_date
-        self.car_make = car_make
-        self.car_model = car_model
-        self.car_year = car_year
-        self.sentiment = sentiment
-        self.id = id
-
-    def __str__(self):
-        return f"Review ID: {self.id}, Dealer: {self.dealership}, Name: {self.name}, Sentiment: {self.sentiment}"
-
 def get_dealer_reviews_from_cf(dealer_id):
     url = f"your-cloud-function-domain/reviews/review-get"  # Replace with your cloud function URL
     results = []
     
     # Call get_request with dealerId parameter to fetch reviews for the specified dealer ID
-    json_result = get_request(url, dealerId=dealer_id)
+    json_result = [review for review in reviewlist if review.get('dealership') == dealer_id]
     
     if json_result:
-        reviews = json_result.get("reviews", [])  # Extract 'reviews' from the JSON result or default to an empty list
         
-        for review in reviews:
+        for review in json_result:
             # Create a DealerReview object with values from the review object
             sentiment = analyze_review_sentiments(review.get("review"))
             dealer_review = DealerReview(
@@ -110,20 +100,11 @@ def get_dealer_details(request, dealer_id):
     return HttpResponse("Invalid request method")
 
 def analyze_review_sentiments(review_text):
-    url = "your-watson-nlu-endpoint"  # Replace with your Watson NLU endpoint
-    params = dict()
-    params["text"] = kwargs["text"]
-    params["version"] = kwargs["version"]
-    params["features"] = kwargs["features"]
-    params["return_analyzed_text"] = kwargs["return_analyzed_text"]
-    response = requests.get(url, params=params, headers={'Content-Type': 'application/json'},
-                                        auth=HTTPBasicAuth('apikey', api_key))
-        
-    if response:
-        sentiment = response.get("sentiment", {}).get("document", {}).get("label")
-        return sentiment
-    
-    return None
+    url = 'https://sn-watson-sentiment-bert.labs.skills.network/v1/watson.runtime.nlp.v1/NlpService/SentimentPredict'
+    myobj = { "raw_document": { "text": review_text } }
+    header = {"grpc-metadata-mm-model-id": "sentiment_aggregated-bert-workflow_lang_multi_stock"}
+    response = requests.post(url, json = myobj, headers=header)
+    return response.text
 
 # Create an `analyze_review_sentiments` method to call Watson NLU and analyze text
 # def analyze_review_sentiments(text):
